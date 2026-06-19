@@ -29,3 +29,12 @@ resources:
             base_parameters:
               catalog: churn_banco_futura
               schema: medallion
+
+        - task_key: train_mllib_native
+          depends_on:
+            - task_key: run_medallion_pipeline
+          notebook_task:
+            notebook_path: ../models/model_B_spark_mllib_nativo.py
+            base_parameters:
+              catalog: churn_banco_futura
+              schema: medallion
