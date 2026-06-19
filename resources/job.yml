@@ -7,11 +7,11 @@ resources:
       serverless: true
       libraries:
         - file:
-            path: ../../pipeline/pipeline_01_bronze.py
+            path: ../pipeline/pipeline_01_bronze.py
         - file:
-            path: ../../pipeline/pipeline_02_silver.py
+            path: ../pipeline/pipeline_02_silver.py
         - file:
-            path: ../../pipeline/pipeline_03_gold.py
+            path: ../pipeline/pipeline_03_gold.py
 
   jobs:
     churn_job:
@@ -25,16 +25,7 @@ resources:
           depends_on:
             - task_key: run_medallion_pipeline
           notebook_task:
-            notebook_path: ../../models/model_A_xgboost.py
-            base_parameters:
-              catalog: churn_banco_futura
-              schema: medallion
-
-        - task_key: train_mllib_native
-          depends_on:
-            - task_key: run_medallion_pipeline
-          notebook_task:
-            notebook_path: ../../models/model_B_spark_mllib_nativo.py
+            notebook_path: ../models/model_A_xgboost.py
             base_parameters:
               catalog: churn_banco_futura
               schema: medallion

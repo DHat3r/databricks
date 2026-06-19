@@ -70,11 +70,22 @@ gold_df = spark.table(GOLD_TABLE)
 
 TARGET = "Churn"
 NUM_FEATURES = [
-    "Age", "Tenure", "Usage Frequency", "Support Calls", "Payment Delay",
-    "Total Spend", "Last Interaction",
-    "support_calls_per_tenure", "spend_per_tenure", "risk_score_flags",
+    "Age",
+    "Tenure",
+    "usage_frequency",
+    "support_calls",
+    "payment_delay",
+    "total_spend",
+    "last_interaction",
+    "support_calls_per_tenure",
+    "spend_per_tenure",
+    "risk_score_flags",
 ]
-CAT_FEATURES = ["Gender", "Subscription Type", "Contract Length"]
+CAT_FEATURES = [
+    "Gender",
+    "subscription_type",
+    "contract_length",
+]
 ALL_FEATURES = NUM_FEATURES + CAT_FEATURES
 
 gold_pd = gold_df.toPandas()

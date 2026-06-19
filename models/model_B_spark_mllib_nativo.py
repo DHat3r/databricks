@@ -54,11 +54,23 @@ print("✓ Librerías listas (todas nativas de Spark)")
 
 TARGET = "Churn"
 NUM_FEATURES = [
-    "Age", "Tenure", "Usage Frequency", "Support Calls", "Payment Delay",
-    "Total Spend", "Last Interaction",
-    "support_calls_per_tenure", "spend_per_tenure", "risk_score_flags",
+    "Age",
+    "Tenure",
+    "usage_frequency",
+    "support_calls",
+    "payment_delay",
+    "total_spend",
+    "last_interaction",
+    "support_calls_per_tenure",
+    "spend_per_tenure",
+    "risk_score_flags",
 ]
-CAT_FEATURES = ["Gender", "Subscription Type", "Contract Length"]
+
+CAT_FEATURES = [
+    "Gender",
+    "subscription_type",
+    "contract_length",
+]
 
 gold_df = spark.table(GOLD_TABLE)
 print(f"✓ [GOLD] Registros: {gold_df.count():,}")
@@ -71,14 +83,23 @@ gold_df.groupBy(TARGET).count().orderBy(TARGET).show()
 
 # COMMAND ----------
 
-train_pos, test_pos = gold_df.filter(F.col(TARGET) == 1).randomSplit([0.8, 0.2], seed=RANDOM_STATE)
-train_neg, test_neg = gold_df.filter(F.col(TARGET) == 0).randomSplit([0.8, 0.2], seed=RANDOM_STATE)
+train_pos, test_pos = (
+    gold_df.filter(F.col(TARGET) == 1)
+    .randomSplit([0.8, 0.2], seed=RANDOM_STATE)
+)
 
-train_df = train_pos.unionByName(train_neg).cache()
-test_df  = test_pos.unionByName(test_neg).cache()
+train_neg, test_neg = (
+    gold_df.filter(F.col(TARGET) == 0)
+    .randomSplit([0.8, 0.2], seed=RANDOM_STATE)
+)
 
-n_train, n_test = train_df.count(), test_df.count()
-print(f"✓ Entrenamiento: {n_train:,}  |  Prueba: {n_test:,}")
+train_df = train_pos.unionByName(train_neg)
+test_df  = test_pos.unionByName(test_neg)
+
+n_train = train_df.count()
+n_test  = test_df.count()
+
+print(f"✓ Entrenamiento: {n_train:,} | Prueba: {n_test:,}")
 
 # COMMAND ----------
 
@@ -142,16 +163,33 @@ print("✓ Pipeline Spark ML definido: StringIndexer → OneHotEncoder → Vecto
 
 # COMMAND ----------
 
+
+import os
+import gc
+from datetime import datetime
+
+# ============================================================
+# FIX Databricks Serverless / Shared (OBLIGATORIO)
+# ============================================================
+
+volume_path = f"{CATALOG}.{SCHEMA}.sparkml_tmp"
+spark.sql(f"CREATE VOLUME IF NOT EXISTS {volume_path}")
+
+os.environ["SPARKML_TEMP_DFS_PATH"] = f"/Volumes/{CATALOG}/{SCHEMA}/sparkml_tmp"
+
+print("✓ SparkML temp path listo")
+
+
+# ============================================================
+# FIX CV (IMPORTANTE)
+# ============================================================
+
 param_grid = (
     ParamGridBuilder()
     .addGrid(gbt.maxDepth, [3, 5])
-    .addGrid(gbt.maxIter, [50, 100])
-    .addGrid(gbt.stepSize, [0.05, 0.1])
+    .addGrid(gbt.maxIter, [100])
+    .addGrid(gbt.stepSize, [0.1])
     .build()
-)
-
-evaluator_auc = BinaryClassificationEvaluator(
-    labelCol=TARGET, rawPredictionCol="rawPrediction", metricName="areaUnderROC"
 )
 
 cv = CrossValidator(
@@ -160,17 +198,18 @@ cv = CrossValidator(
     evaluator=evaluator_auc,
     numFolds=3,
     seed=RANDOM_STATE,
-    parallelism=2,
+    parallelism=1,
+    collectSubModels=False
 )
 
-print("Iniciando búsqueda de hiperparámetros (8 combinaciones × 3 folds = 24 entrenamientos)...")
+print("Iniciando CV (2 × 3 = 6 entrenamientos)...")
+
 start_time = datetime.now()
 cv_model = cv.fit(train_df)
 elapsed = (datetime.now() - start_time).seconds
 
 best_model = cv_model.bestModel
 best_gbt = best_model.stages[-1]
-best_auc_cv = max(cv_model.avgMetrics)
 
 print(f"✓ Búsqueda completada en {elapsed}s | Mejor AUC-ROC (CV): {best_auc_cv:.4f}")
 print(f"  maxDepth={best_gbt.getMaxDepth()}  maxIter={best_gbt.getMaxIter()}  stepSize={best_gbt.getStepSize()}")
