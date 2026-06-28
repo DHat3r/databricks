@@ -179,7 +179,15 @@ os.environ["SPARKML_TEMP_DFS_PATH"] = f"/Volumes/{CATALOG}/{SCHEMA}/sparkml_tmp"
 
 print("✓ SparkML temp path listo")
 
+# ============================================================
+# Evaluador AUC-ROC
+# ============================================================
 
+evaluator_auc = BinaryClassificationEvaluator(
+    labelCol=TARGET,
+    rawPredictionCol="rawPrediction",
+    metricName="areaUnderROC"
+)
 # ============================================================
 # FIX CV (IMPORTANTE)
 # ============================================================
